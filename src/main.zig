@@ -1,5 +1,6 @@
 const std = @import("std");
 const zjit = @import("zjit");
+const wasmparser = @import("wasm/parser.zig");
 
 fn stringsMatch(a: []const u8, b: []const u8) bool {
     return std.mem.eql(u8, a, b);
@@ -24,11 +25,19 @@ pub fn main(init: std.process.Init) !void {
             if (filename) |fname| {
                 try stdout.interface.print("Running file '{s}'\n", .{ fname });
 
-                const cwd = std.Io.Dir.cwd();
-                const data = try cwd.readFileAlloc(io, fname, init.gpa, .unlimited);
-                defer init.gpa.free(data);
+                var parser: wasmparser.Parser = try .init(
+                    fname,
+                    init.arena.allocator(),
+                    io
+                );
 
-                try stdout.interface.print("{s}\n", .{ data });
+                const module = try parser.parse();
+
+                try stdout.interface.print("Module func types: {}\n", .{ module.typesec.len });
+
+                for (module.typesec) |ft| {
+                    try stdout.interface.print("  params: {}, results: {}\n", .{ ft.params.len, ft.results.len });
+                }
             } else {
                 try stdout.interface.print("Expected filename for 'run' command\n", .{ });
             }
