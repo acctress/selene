@@ -1,71 +1,42 @@
 const std = @import("std");
-const Io = std.Io;
+const zjit = @import("zjit");
 
-const selene = @import("selene");
+fn stringsMatch(a: []const u8, b: []const u8) bool {
+    return std.mem.eql(u8, a, b);
+}
 
 pub fn main(init: std.process.Init) !void {
-    // Prints to stderr, unbuffered, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // This is appropriate for anything that lives as long as the process.
-    const arena: std.mem.Allocator = init.arena.allocator();
-
-    // Accessing command line arguments:
-    const args = try init.minimal.args.toSlice(arena);
-    for (args) |arg| {
-        std.log.info("arg: {s}", .{arg});
-    }
-
-    // In order to do I/O operations need an `Io` instance.
     const io = init.io;
 
-    // Stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout_writer = &stdout_file_writer.interface;
+    var stdout = std.Io.File.stdout().writer(io, &.{ });
 
-    try selene.printAnotherMessage(stdout_writer);
+    var args_iter = try init.minimal.args.iterateAllocator(init.gpa);
+    defer args_iter.deinit();
 
-    try stdout_writer.flush(); // Don't forget to flush!
-}
+    _ = args_iter.skip();
 
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
+    const arg: ?[]const u8 = args_iter.next();
+    if (arg) |sub_cmd| {
 
-test "fuzz example" {
-    try std.testing.fuzz({}, testOne, .{});
-}
+        if (stringsMatch(sub_cmd, "run")) {
+            const filename: ?[]const u8 = args_iter.next();
 
-fn testOne(context: void, smith: *std.testing.Smith) !void {
-    _ = context;
-    // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
+            if (filename) |fname| {
+                try stdout.interface.print("Running file '{s}'\n", .{ fname });
 
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(u8) = .empty;
-    defer list.deinit(gpa);
-    while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
-        .add_data => {
-            const slice = try list.addManyAsSlice(gpa, smith.value(u4));
-            smith.bytes(slice);
-        },
-        .dup_data => {
-            if (list.items.len == 0) continue;
-            if (list.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
-            const len = smith.valueRangeAtMost(u32, 1, @min(32, list.items.len));
-            const off = smith.valueRangeAtMost(u32, 0, @intCast(list.items.len - len));
-            try list.appendSlice(gpa, list.items[off..][0..len]);
-            try std.testing.expectEqualSlices(
-                u8,
-                list.items[off..][0..len],
-                list.items[list.items.len - len ..],
-            );
-        },
-    };
+                const cwd = std.Io.Dir.cwd();
+                const data = try cwd.readFileAlloc(io, fname, init.gpa, .unlimited);
+                defer init.gpa.free(data);
+
+                try stdout.interface.print("{s}\n", .{ data });
+            } else {
+                try stdout.interface.print("Expected filename for 'run' command\n", .{ });
+            }
+        } else {
+            try stdout.interface.print("Subcommand '{s}' is not implemented yet.\n", .{ sub_cmd });
+        }
+
+    } else {
+        try stdout.interface.print("Expected arguments: run, inspect\n", .{ });
+    }
 }
