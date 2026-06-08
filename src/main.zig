@@ -38,6 +38,9 @@ pub fn main(init: std.process.Init) !void {
                 for (module.typesec) |ft| {
                     try stdout.interface.print("  params: {}, results: {}\n", .{ ft.params.len, ft.results.len });
                 }
+
+                try stdout.interface.print("Module func count: {}\n", .{ module.funcsec.len });
+
             } else {
                 try stdout.interface.print("Expected filename for 'run' command\n", .{ });
             }

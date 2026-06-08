@@ -1,11 +1,31 @@
 const std = @import("std");
 const module = @import("module.zig");
 const reader = @import("reader.zig");
+const t = @import("../types.zig");
+
+const TypeIdx = t.TypeIdx;
 
 const Reader = reader.Reader;
 const FuncType = module.FuncType;
 const ValType = module.ValType;
 const WasmModule = module.WasmModule;
+
+pub const SectionId = enum(u8) {
+    customsec = 0x0,
+    typesec = 0x1,
+    importsec = 0x2,
+    funcsec = 0x3,
+    tablesec = 0x4,
+    memsec = 0x5,
+    globalsec = 0x6,
+    exportsec = 0x7,
+    startsec = 0x8,
+    elemsec = 0x9,
+    codesec = 0x0A,
+    datasec = 0x0B,
+    datacsec = 0x0C,
+    tagsec = 0x0D,
+};
 
 pub const ParserError = error {
     IncorrectSectionMarker,
@@ -16,7 +36,6 @@ pub const ParserError = error {
 pub const Parser = struct {
     alloc: std.mem.Allocator,
     data: []u8,
-    pos: usize,
 
     pub fn init(path: []const u8, alloc: std.mem.Allocator, io: std.Io) !Parser {
         const cwd = std.Io.Dir.cwd();
@@ -25,7 +44,6 @@ pub const Parser = struct {
         return .{
             .alloc = alloc,
             .data = data,
-            .pos = 0,
         };
     }
 
@@ -39,21 +57,24 @@ pub const Parser = struct {
         var cursor: Reader = .init(self.data[8..]);
 
         var typesec: []FuncType = &.{ };
+        var funcsec: []TypeIdx  = &.{ };
 
         while (!cursor.atEOF()) {
-            const sect_id = try cursor.readByte();
+            const sect_id_byte = try cursor.readByte();
             const sect_len = try cursor.readULEB128();
             const sect_data: []u8 = try cursor.readSlice(sect_len);
+            const sect_id = std.enums.fromInt(SectionId, sect_id_byte) orelse continue;
+
             var sect_reader: Reader = .init(sect_data);
 
             switch (sect_id) {
-                // type section
-                0x01 => typesec = try self.parseTypeSection(&sect_reader),
+                .typesec => typesec = try self.parseTypeSection(&sect_reader),
+                .funcsec => funcsec = try self.parseFunctionSection(&sect_reader),
                 else => continue,
             }
         }
 
-        return WasmModule{ .typesec = typesec };
+        return WasmModule{ .typesec = typesec, .funcsec = funcsec };
     }
 
     fn parseTypeSection(self: *Parser, section: *Reader) ![]FuncType {
@@ -83,5 +104,16 @@ pub const Parser = struct {
         }
 
         return types;
+    }
+
+    fn parseFunctionSection(self: *Parser, section: *Reader) ![]TypeIdx {
+        const count = try section.readULEB128();
+        const entries = try self.alloc.alloc(TypeIdx, count);
+
+        for (0..count) |i| {
+            entries[i] = try section.readULEB128();
+        }
+
+        return entries;
     }
 };

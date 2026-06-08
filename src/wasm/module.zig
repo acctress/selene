@@ -1,7 +1,9 @@
 const std = @import("std");
+const types = @import("../types.zig");
 
 pub const WasmModule = struct {
     typesec: []FuncType,
+    funcsec: []types.TypeIdx,
 };
 
 pub const FuncType = struct {
