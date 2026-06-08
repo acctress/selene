@@ -17,6 +17,7 @@ pub const Translator = struct {
     emitter: zjit.Emitter,
     wasm: wasmmod.WasmModule,
     module: zjit.IR.Module,
+    export_map: std.StringHashMap(usize),
 
     pub fn init(wasm: wasmmod.WasmModule, alloc: std.mem.Allocator) !Translator {
         const emitter = try zjit.Emitter.init(alloc, 1024);
@@ -27,6 +28,7 @@ pub const Translator = struct {
             .emitter = emitter,
             .wasm = wasm,
             .module = module,
+            .export_map = std.StringHashMap(usize).init(alloc),
         };
     }
 
@@ -36,9 +38,13 @@ pub const Translator = struct {
     }
 
     pub fn translate(self: *Translator) !void {
-        for (self.wasm.funcsec, 0..) |type_idx, i| {
+        for (self.wasm.exportsec) |ex| {
+            if (ex.kind != .func) continue;
+
+            const func_idx = ex.index;
+            const type_idx = self.wasm.funcsec[func_idx];
             const func_type = self.wasm.typesec[type_idx];
-            const code = self.wasm.codesec[i];
+            const code = self.wasm.codesec[func_idx];
 
             const ir_params = try self.alloc.alloc(zjit.IR.Type, func_type.params.len);
             for (0..func_type.params.len) |idx| {
@@ -46,14 +52,12 @@ pub const Translator = struct {
             }
 
             const ir_return = self.valTypeToIR(func_type.results[0]);
+            var function = try self.module.createFunction(ex.name, ir_params, ir_return);
 
-            var buf: [32]u8 = undefined;
-            const name = try std.fmt.bufPrint(&buf, "fn_{d}", .{i});
-
-            var function = try self.module.createFunction(try self.alloc.dupe(u8, name), ir_params, ir_return);
+            const fn_idx = self.module.functions.items.len - 1;
+            try self.export_map.put(ex.name, fn_idx);
 
             var stack: std.ArrayList(u32) = .empty;
-
             var cursor = reader.Reader.init(code.body);
             while (!cursor.atEOF()) {
                 const opcode = std.enums.fromInt(Opcodes, try cursor.readByte());
@@ -79,13 +83,11 @@ pub const Translator = struct {
                             break;
                         },
 
-                        else => @panic("unsupported opcode")
+                        else => @panic("unsupported opcode"),
                     }
                 }
             }
         }
-
-        std.debug.print("translated {} functions\n", .{self.wasm.funcsec.len});
     }
 
     pub fn compile(self: *Translator) !zjit.GenModule {

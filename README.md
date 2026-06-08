@@ -68,10 +68,10 @@ Selene is a lightweight WebAssembly JIT runtime written in Zig. It parses `.wasm
 
 ### Example
 ```bash
-$ selene run add.wasm --verbose --fn fn_0 -- 10 20
-parsed 1 type(s), 1 function(s), 1 code entrie(s)
-translated 1 functions
-self.functions.contains(symbol) = true
+$ selene inspect add.wasm
+functions (1):
+  add : (i32, i32) -> i32
+$ selene run add.wasm --fn add -- 10 20
 30
 ```
 

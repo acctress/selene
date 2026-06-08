@@ -10,6 +10,8 @@ const Local = module.Local;
 const FuncType = module.FuncType;
 const ValType = module.ValType;
 const Code = module.Code;
+const Export = module.Export;
+const ExportKind = module.ExportKind;
 const WasmModule = module.WasmModule;
 
 pub const SectionId = enum(u8) {
@@ -60,7 +62,7 @@ pub const Parser = struct {
         const magic = self.data[0..4];
         if (!std.mem.eql(u8, magic, "\x00asm")) return ParserError.InvalidMagic;
 
-        const version = self.data[4..8];
+        const version: []u8 = self.data[4..8];
         if (!std.mem.eql(u8, version, &.{ 0x01, 0x00, 0x00, 0x00 })) return ParserError.InvalidVersion;
 
         var cursor: Reader = .init(self.data[8..]);
@@ -68,6 +70,7 @@ pub const Parser = struct {
         var typesec: []FuncType = &.{ };
         var funcsec: []TypeIdx  = &.{ };
         var codesec: []Code     = &.{ };
+        var exportsec: []Export = &.{ };
 
         while (!cursor.atEOF()) {
             const sect_id_byte = try cursor.readByte();
@@ -78,14 +81,20 @@ pub const Parser = struct {
             var sect_reader: Reader = .init(sect_data);
 
             switch (sect_id) {
-                .typesec => typesec = try self.parseTypeSection(&sect_reader),
-                .funcsec => funcsec = try self.parseFunctionSection(&sect_reader),
-                .codesec => codesec = try self.parseCodeSection(&sect_reader),
+                .typesec =>   typesec   = try self.parseTypeSection(&sect_reader),
+                .funcsec =>   funcsec   = try self.parseFunctionSection(&sect_reader),
+                .codesec =>   codesec   = try self.parseCodeSection(&sect_reader),
+                .exportsec => exportsec = try self.parseExportSection(&sect_reader),
                 else => continue,
             }
         }
 
-        return WasmModule{ .typesec = typesec, .funcsec = funcsec, .codesec = codesec };
+        return WasmModule{
+            .typesec = typesec,
+            .funcsec = funcsec,
+            .codesec = codesec,
+            .exportsec = exportsec
+        };
     }
 
     fn parseTypeSection(self: *Parser, section: *Reader) ![]FuncType {
@@ -150,6 +159,21 @@ pub const Parser = struct {
             const rem = entry_reader.remaining();
             const body = try entry_reader.readSlice(@intCast(rem));
             entries[idx] = Code{ .locals = locals, .body = body };
+        }
+
+        return entries;
+    }
+
+    fn parseExportSection(self: *Parser, section: *Reader) ![]Export {
+        const count = try section.readULEB128();
+        const entries = try self.alloc.alloc(Export, count);
+
+        for (0..count) |idx| {
+            const name_len = try section.readULEB128();
+            const name = try section.readSlice(name_len);
+            const kind = std.enums.fromInt(ExportKind, try section.readByte()).?;
+            const index = try section.readULEB128();
+            entries[idx] = Export{ .name = name, .kind = kind, .index = index };
         }
 
         return entries;

@@ -5,6 +5,7 @@ pub const WasmModule = struct {
     typesec: []FuncType,
     funcsec: []types.TypeIdx,
     codesec: []Code,
+    exportsec: []Export,
 };
 
 pub const FuncType = struct {
@@ -27,4 +28,17 @@ pub const Code = struct {
 pub const Local = struct {
     count: u32,
     type:  ValType
+};
+
+pub const Export = struct {
+    name: []const u8,
+    kind: ExportKind,
+    index: u32,
+};
+
+pub const ExportKind = enum(u8) {
+    func   = 0x00,
+    table  = 0x01,
+    memory = 0x02,
+    global = 0x03
 };

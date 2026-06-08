@@ -33,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
             }
 
             var trans = try translator.Translator.init(module, init.arena.allocator());
-            defer trans.deinit();
+            // defer trans.deinit();
 
             try trans.translate();
 
@@ -47,20 +47,18 @@ pub fn main(init: std.process.Init) !void {
                 try stdout.interface.print("[dump-asm flag not implemented]\n", .{});
             }
 
-            const fn_name = args.fn_name orelse "fn_0";
-
-            const func_idx = b: {
-                for (module.funcsec, 0..) |_, i| {
-                    var buf: [32]u8 = undefined;
-                    const name = try std.fmt.bufPrint(&buf, "fn_{d}", .{ i });
-                    if (std.mem.eql(u8, name, fn_name)) break :b i;
-                }
-
-                try stdout.interface.print("error: function '{s}' not found\n", .{ fn_name });
+            const fn_name = args.fn_name orelse {
+                try stdout.interface.print("error: --fn required\n", .{});
                 return;
             };
 
-            const type_idx = module.funcsec[func_idx];
+            const func_idx = trans.export_map.get(fn_name) orelse {
+                try stdout.interface.print("error: function '{s}' not found\n", .{fn_name});
+                return;
+            };
+
+            const wasm_func_idx = module.exportsec[func_idx].index;
+            const type_idx = module.funcsec[wasm_func_idx];
             const func_type = module.typesec[type_idx];
 
             const n_params = func_type.params.len;
@@ -69,7 +67,6 @@ pub fn main(init: std.process.Init) !void {
                     n_params,
                     args.call_args.len,
                 });
-
                 return;
             }
 
@@ -85,43 +82,49 @@ pub fn main(init: std.process.Init) !void {
                 2 => @as(*const fn (i64, i64) callconv(.c) i64, @ptrCast(fun))(iargs[0], iargs[1]),
                 3 => @as(*const fn (i64, i64, i64) callconv(.c) i64, @ptrCast(fun))(iargs[0], iargs[1], iargs[2]),
                 4 => @as(*const fn (i64, i64, i64, i64) callconv(.c) i64, @ptrCast(fun))(iargs[0], iargs[1], iargs[2], iargs[3]),
-                else => {
-                    @panic("TODO: implement a way to call a function with a variable amount of arguments");
-                },
+                else => @panic("too many params"),
             };
-            
-            try stdout.interface.print("{}\n", .{ result });
+
+            try stdout.interface.print("{}\n", .{result});
         },
-        .inspect => |inspect_args| {
+        .inspect => |args| {
             var parser: wasmparser.Parser = try .init(
-                inspect_args.file,
+                args.file,
                 init.arena.allocator(),
                 io,
             );
 
             const module = try parser.parse();
 
-            if (inspect_args.functions or (!inspect_args.functions and !inspect_args.exports)) {
-                try stdout.interface.print("functions ({}):\n", .{module.funcsec.len});
-                for (module.funcsec, 0..) |type_idx, i| {
+            if (args.functions or (!args.functions and !args.exports)) {
+                try stdout.interface.print("functions ({}):\n", .{module.exportsec.len});
+                for (module.exportsec) |ex| {
+                    if (ex.kind != .func) continue;
+                    const type_idx = module.funcsec[ex.index];
                     const ft = module.typesec[type_idx];
-                    try stdout.interface.print("  fn_{} : (", .{i});
+                    try stdout.interface.print("  {s} : (", .{ex.name});
                     for (ft.params, 0..) |p, j| {
                         if (j > 0) try stdout.interface.print(", ", .{});
                         try stdout.interface.print("{s}", .{@tagName(p)});
                     }
                     try stdout.interface.print(") -> ", .{});
                     if (ft.results.len > 0) {
-                        try stdout.interface.print("{s}", .{@tagName(ft.results[0])});
+                        try stdout.interface.print("{s}\n", .{@tagName(ft.results[0])});
                     } else {
-                        try stdout.interface.print("void", .{});
+                        try stdout.interface.print("void\n", .{});
                     }
-                    try stdout.interface.print("\n", .{});
                 }
             }
 
-            if (inspect_args.exports) {
-                try stdout.interface.print("exports: [export section not yet parsed]\n", .{});
+            if (args.exports) {
+                try stdout.interface.print("exports ({}):\n", .{module.exportsec.len});
+                for (module.exportsec) |ex| {
+                    try stdout.interface.print("  {s} ({s}) index={}\n", .{
+                        ex.name,
+                        @tagName(ex.kind),
+                        ex.index,
+                    });
+                }
             }
         },
     }
