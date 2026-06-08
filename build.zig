@@ -17,11 +17,10 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "zjit", .module = zjit_mod  }
-            },
         }),
     });
+
+    exe.root_module.addImport("zjit", zjit_mod);
 
     b.installArtifact(exe);
 

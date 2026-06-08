@@ -1,12 +1,12 @@
 .{
     .name = .selene,
-    .version = "0.0.0",
+    .version = "0.0.1",
     .fingerprint = 0x94ecb47f2febf091,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .zjit = .{
             .url = "https://github.com/acctress/zjit/archive/refs/heads/master.tar.gz",
-            .hash = "zjit-0.0.0-C70HcbomAQD5GvkfiDK9NaIqsA9O-RVvQfMpcZQlOlzP",
+            .hash = "zjit-0.0.0-C70HcfcmAQDP8CfdDE6okNgacSIUYGLG1yNHcywv9BV2",
         },
     },
     .paths = .{

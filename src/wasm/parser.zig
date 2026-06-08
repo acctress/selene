@@ -49,6 +49,13 @@ pub const Parser = struct {
         };
     }
 
+    pub fn initFromBytes(bytes: []const u8, alloc: std.mem.Allocator) Parser {
+        return .{
+            .alloc = alloc,
+            .data = bytes,
+        };
+    }
+
     pub fn parse(self: *Parser) !WasmModule {
         const magic = self.data[0..4];
         if (!std.mem.eql(u8, magic, "\x00asm")) return ParserError.InvalidMagic;
@@ -148,3 +155,14 @@ pub const Parser = struct {
         return entries;
     }
 };
+
+const testing = std.testing;
+const add_wasm = @embedFile("../../wasms/add.wasm");
+
+test "parse add.wasm type section" {
+    var parser = Parser.initFromBytes(add_wasm, testing.allocator);
+    const mod = try parser.parse();
+    
+    try testing.expectEqual(1, mod.typesec.len);
+    try testing.expectEqual(1, mod.funcsec.len);
+}

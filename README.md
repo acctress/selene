@@ -66,6 +66,14 @@ Selene is a lightweight WebAssembly JIT runtime written in Zig. It parses `.wasm
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+### Example
+```bash
+$ selene run add.wasm --verbose --fn fn_0 -- 10 20
+parsed 1 type(s), 1 function(s), 1 code entrie(s)
+translated 1 functions
+self.functions.contains(symbol) = true
+30
+```
 
 
 <!-- GETTING STARTED -->
@@ -115,24 +123,24 @@ zig build
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Wasm binary parser
-    - [ ] Magic number + version validation
-    - [ ] Section loop (type, func, code)
-    - [ ] LEB128 decoding
-- [ ] Wasm validator
+- [x] Wasm binary parser
+    - [x] Magic number + version validation
+    - [x] Section loop (type, func, code)
+    - [x] LEB128 decoding
+- [x] Wasm validator
 - [ ] Wasm to zjit IR translator
-    - [ ] Arithmetic opcodes (i32.add, i32.sub)
+    - [x] Arithmetic opcodes (i32.add, i32.sub)
     - [ ] Control flow (block, loop, if, br, br_if)
-    - [ ] Function calls
-- [ ] zjit JIT backend integration
-- [ ] Native code execution
+    - [x] Function calls
+- [x] zjit JIT backend integration
+- [x] Native code execution
 - [ ] Host + sandbox
     - [ ] Linear memory
     - [ ] Imports and exports
     - [ ] WASI support
 - [ ] CLI
-  - [ ] `run` subcommand
-  - [ ] `inspect` subcommand
+  - [x] `run` subcommand
+  - [x] `inspect` subcommand
   - [ ] `--dump-ir` flag
   - [ ] `--dump-asm` flag
   - [ ] `--interpret` fallback
