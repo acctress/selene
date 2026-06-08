@@ -50,4 +50,8 @@ pub const Reader = struct {
         self.pos += 1;
         return b;
     }
+
+    pub fn remaining(self: *Reader) usize {
+        return self.bytes.len - self.pos;
+    }
 };

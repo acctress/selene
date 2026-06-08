@@ -3,11 +3,13 @@ const module = @import("module.zig");
 const reader = @import("reader.zig");
 const t = @import("../types.zig");
 
-const TypeIdx = t.TypeIdx;
-
 const Reader = reader.Reader;
+
+const TypeIdx = t.TypeIdx;
+const Local = module.Local;
 const FuncType = module.FuncType;
 const ValType = module.ValType;
+const Code = module.Code;
 const WasmModule = module.WasmModule;
 
 pub const SectionId = enum(u8) {
@@ -58,6 +60,7 @@ pub const Parser = struct {
 
         var typesec: []FuncType = &.{ };
         var funcsec: []TypeIdx  = &.{ };
+        var codesec: []Code     = &.{ };
 
         while (!cursor.atEOF()) {
             const sect_id_byte = try cursor.readByte();
@@ -70,11 +73,12 @@ pub const Parser = struct {
             switch (sect_id) {
                 .typesec => typesec = try self.parseTypeSection(&sect_reader),
                 .funcsec => funcsec = try self.parseFunctionSection(&sect_reader),
+                .codesec => codesec = try self.parseCodeSection(&sect_reader),
                 else => continue,
             }
         }
 
-        return WasmModule{ .typesec = typesec, .funcsec = funcsec };
+        return WasmModule{ .typesec = typesec, .funcsec = funcsec, .codesec = codesec };
     }
 
     fn parseTypeSection(self: *Parser, section: *Reader) ![]FuncType {
@@ -112,6 +116,33 @@ pub const Parser = struct {
 
         for (0..count) |i| {
             entries[i] = try section.readULEB128();
+        }
+
+        return entries;
+    }
+
+    fn parseCodeSection(self: *Parser, section: *Reader) ![]Code {
+        const count = try section.readULEB128();
+        const entries = try self.alloc.alloc(Code, count);
+
+        for (0..count) |idx| {
+            const entry_size = try section.readULEB128();
+            const entry_data = try section.readSlice(entry_size);
+            var entry_reader = Reader.init(entry_data);
+
+            const locals_count = try entry_reader.readULEB128();
+            const locals = try self.alloc.alloc(Local, locals_count);
+
+            for (0..locals_count) |i| {
+                locals[i] = Local{
+                    .count = try entry_reader.readULEB128(),
+                    .type = std.enums.fromInt(ValType, try entry_reader.readByte()) orelse .i32,
+                };
+            }
+
+            const rem = entry_reader.remaining();
+            const body = try entry_reader.readSlice(@intCast(rem));
+            entries[idx] = Code{ .locals = locals, .body = body };
         }
 
         return entries;

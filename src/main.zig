@@ -41,6 +41,9 @@ pub fn main(init: std.process.Init) !void {
 
                 try stdout.interface.print("Module func count: {}\n", .{ module.funcsec.len });
 
+                for (module.codesec) |code| {
+                    try stdout.interface.print("  locals: {}, body bytes: {}\n", .{ code.locals.len, code.body.len });
+                }
             } else {
                 try stdout.interface.print("Expected filename for 'run' command\n", .{ });
             }
