@@ -16,4 +16,8 @@
         local.get 1
         i32.mul
     )
+
+    (func (export "const") (result i32)
+        i32.const 78
+    )
 )

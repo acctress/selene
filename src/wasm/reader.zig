@@ -43,6 +43,30 @@ pub const Reader = struct {
         }
     }
 
+    pub fn readSLEB128(self: *Reader) !i32 {
+        var result: i32 = 0;
+        var shift: u5 = 0;
+        var byte: u8 = 0;
+
+        // while the higher order bit is not 0
+        while (true) {
+            if (self.atEOF()) return error.UnexpectedEof;
+
+            byte = self.bytes[self.pos];
+            self.pos += 1;
+
+            result |= @as(i32, @intCast(byte & 0x7F)) << shift;
+            shift += 7;
+
+            if ((byte & 0x80) == 0) break;
+        }
+
+        if (shift < 32 and (byte & 0x40) != 0)
+            result |= @as(i32, -1) << shift;
+
+        return result;
+    }
+
     pub fn readByte(self: *Reader) !u8 {
         if (self.atEOF()) return error.UnexpectedEof;
 

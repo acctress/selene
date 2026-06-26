@@ -16,20 +16,12 @@ pub fn main(init: std.process.Init) !void {
 
     switch (parsed.subcommand) {
         .run => |args| {
-            var parser: wasmparser.Parser = try .init(
-                args.file,
-                init.arena.allocator(),
-                io
-            );
+            var parser: wasmparser.Parser = try .init(args.file, init.arena.allocator(), io);
 
             const module = try parser.parse();
 
             if (args.verbose) {
-                try stdout.interface.print("parsed {} type(s), {} function(s), {} code entrie(s)\n", .{
-                    module.typesec.len,
-                    module.funcsec.len,
-                    module.codesec.len
-                });
+                try stdout.interface.print("parsed {} type(s), {} function(s), {} code entrie(s)\n", .{ module.typesec.len, module.funcsec.len, module.codesec.len });
             }
 
             var trans = try translator.Translator.init(module, init.arena.allocator());
