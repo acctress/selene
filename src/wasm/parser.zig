@@ -2,6 +2,7 @@ const std = @import("std");
 const module = @import("module.zig");
 const reader = @import("reader.zig");
 const t = @import("../types.zig");
+const utils = @import("../utils.zig");
 
 const Reader = reader.Reader;
 
@@ -42,13 +43,15 @@ pub const Parser = struct {
     data: []u8,
 
     pub fn init(path: []const u8, alloc: std.mem.Allocator, io: std.Io) !Parser {
-        const cwd = std.Io.Dir.cwd();
-        const data = try cwd.readFileAlloc(io, path, alloc, .unlimited);
-
+        const data = try utils.readFile(io, alloc, path);
         return .{
             .alloc = alloc,
             .data = data,
         };
+    }
+
+    pub fn deinit(self: *Parser) void {
+        self.alloc.free(self.data);
     }
 
     pub fn initFromBytes(bytes: []const u8, alloc: std.mem.Allocator) Parser {

@@ -6,7 +6,7 @@
     .dependencies = .{
         .zjit = .{
             .url = "https://github.com/acctress/zjit/archive/refs/heads/master.tar.gz",
-            .hash = "zjit-0.0.0-C70HcfcmAQDP8CfdDE6okNgacSIUYGLG1yNHcywv9BV2",
+            .hash = "zjit-0.0.0-C70HcXFDAQBULfdnpvpyc3X9SfJYT4fm9eyW_BGdWNAn",
         },
     },
     .paths = .{

@@ -38,7 +38,13 @@ pub fn main(init: std.process.Init) !void {
             try trans.translate();
 
             if (args.dump_ir) {
-                try stdout.interface.print("[dump-ir flag not implemented]\n", .{});
+                var buf: std.ArrayListUnmanaged(u8) = .empty;
+                {
+                    var aw: std.Io.Writer.Allocating = .fromArrayList(init.arena.allocator(), &buf);
+                    try zjit.IR.IRFmt.fmtModule(&trans.module, &aw.writer);
+                    buf = aw.toArrayList();
+                }
+                try stdout.interface.writeAll(buf.items);
             }
 
             var compiled = try trans.compile();
@@ -93,6 +99,8 @@ pub fn main(init: std.process.Init) !void {
                 init.arena.allocator(),
                 io,
             );
+
+            defer parser.deinit();
 
             const module = try parser.parse();
 

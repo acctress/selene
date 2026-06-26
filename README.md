@@ -92,6 +92,8 @@ selene inspect <file.wasm>  --functions             # list all functions and sig
 selene inspect <file.wasm>  --exports               # list exports
 ```
 
+[![Screenshot-2026-06-26-185317.png](https://i.postimg.cc/KYHP7vFW/Screenshot-2026-06-26-185317.png)](https://postimg.cc/B82P43j5)
+
 #### Future flags
 ```
 --verbose       # Log IR and show compilation steps
@@ -141,7 +143,7 @@ zig build
 - [ ] CLI
   - [x] `run` subcommand
   - [x] `inspect` subcommand
-  - [ ] `--dump-ir` flag
+  - [x] `--dump-ir` flag
   - [ ] `--dump-asm` flag
   - [ ] `--interpret` fallback
 - [ ] Optimisation passes

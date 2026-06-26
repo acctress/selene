@@ -9,6 +9,7 @@ pub const Opcodes = enum(u8) {
     i32_const = 0x41,
     i32_add   = 0x6A,
     i32_sub   = 0x6B,
+    i32_mul   = 0x6C,
     end       = 0x0B,
 };
 
@@ -74,6 +75,20 @@ pub const Translator = struct {
                             const rhs = stack.pop().?;
                             const lhs = stack.pop().?;
                             const result = try function.iadd(lhs, rhs);
+                            try stack.append(self.alloc, result);
+                        },
+
+                        .i32_sub => {
+                            const rhs = stack.pop().?;
+                            const lhs = stack.pop().?;
+                            const result = try function.isub(lhs, rhs);
+                            try stack.append(self.alloc, result);
+                        },
+
+                        .i32_mul => {
+                            const rhs = stack.pop().?;
+                            const lhs = stack.pop().?;
+                            const result = try function.imul(lhs, rhs);
                             try stack.append(self.alloc, result);
                         },
 
